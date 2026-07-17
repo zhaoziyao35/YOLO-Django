@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收费站视频分析系统</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        h1 {
+            color: #1a3a5c;
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 15px;
+        }
+        .tab-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .tab-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #e9ecef;
+            color: #333;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            background: #007bff;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0,123,255,0.3);
+        }
+        .tab-btn:hover {
+            opacity: 0.8;
+        }
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .upload-area {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .upload-area input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 400px;
+            cursor: pointer;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #a71d2a;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .result-area {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .result-video {
+            flex: 2;
+            min-width: 300px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .result-video video, .result-video img {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 5px;
+            background: #000;
+        }
+        .result-data {
+            flex: 1;
+            min-width: 250px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 550px;
+            overflow-y: auto;
+        }
+        .result-data pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #e9ecef;
+            color: #333;
+        }
+        .status.running {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.info {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .warning-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin: 3px;
+            color: white;
+            font-size: 14px;
+        }
+        .warning-tag.congestion { background: #dc3545; }
+        .warning-tag.intrusion { background: #ff6b00; }
+        .warning-tag.vehicle { background: #fd7e14; }
+        .warning-tag.parking { background: #9b59b6; }
+        .warning-tag.wrongway { background: #e74c3c; }
+        .task-info {
+            background: #e9ecef;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .task-info strong {
+            color: #007bff;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .stats-item {
+            background: white;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stats-item .num {
+            font-size: 20px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stats-item .label {
+            font-size: 12px;
+            color: #666;
+        }
+        @media (max-width: 700px) {
+            .result-area {
+                flex-direction: column;
+            }
+            .tab-btn {
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚗 收费站视频分析系统</h1>
+
+    <!-- 选项卡 -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('image')">📷 图片检测</button>
+        <button class="tab-btn" onclick="switchTab('video')">🎬 视频检测</button>
+        <button class="tab-btn" onclick="switchTab('tasks')">📋 任务列表</button>
+    </div>
+
+    <!-- ========== 图片检测 ========== -->
+    <div id="tab-image" class="tab-content active">
+        <div class="upload-area">
+            <h3>上传图片进行检测</h3>
+            <input type="file" id="imageInput" accept="image/*">
+            <br>
+            <button class="btn" onclick="detectImage()">🔍 开始检测</button>
+            <div id="imageStatus" class="status">等待上传...</div>
+        </div>
+        <div class="result-area">
+            <div class="result-video">
+                <h4>📸 检测结果</h4>
+                <img id="resultImage" src="" alt="等待检测...">
+            </div>
+            <div class="result-data">
+                <h4>📊 检测数据</h4>
+                <pre id="imageResultData">等待检测...</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 视频检测 ========== -->
+    <div id="tab-video" class="tab-content">
+        <div class="upload-area">
+            <h3>上传视频文件进行检测</h3>
+            <input type="file" id="videoInput" accept="video/*">
+            <br>
+            <button class="btn" onclick="createVideoTask()">🚀 启动视频检测</button>
+            <button class="btn btn-danger" onclick="stopCurrentTask()" id="stopVideoBtn" disabled>⏹ 停止检测</button>
+            <div id="videoStatus" class="status">等待上传...</div>
+            <div id="taskIdDisplay" class="task-info" style="display:none;">
+                <strong>任务ID:</strong> <span id="taskIdSpan"></span>
+            </div>
+        </div>
+        <div class="result-area">
+            <div class="result-video">
+                <h4>🎬 视频播放</h4>
+                <video id="videoPlayer" controls style="width:100%;max-height:450px;background:#000;">
+                    <source id="videoSource" src="">
+                    您的浏览器不支持视频播放
+                </video>
+            </div>
+            <div class="result-data">
+                <h4>📊 检测数据</h4>
+                <div id="videoStats"></div>
+                <pre id="videoResultData">等待检测...</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 任务列表 ========== -->
+    <div id="tab-tasks" class="tab-content">
+        <div style="display:flex;gap:10px;margin-bottom:15px;">
+            <button class="btn btn-success" onclick="refreshTaskList()">🔄 刷新列表</button>
+            <button class="btn btn-danger" onclick="stopAllTasks()">⏹ 停止所有任务</button>
+        </div>
+        <div id="taskListContainer">
+            <pre id="taskListData">点击刷新查看任务列表...</pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:9060';
+        let currentTaskId = null;
+        let refreshInterval = null;
+
+        // ========== 选项卡切换 ==========
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+            if (tab === 'tasks') refreshTaskList();
+        }
+
+        // ========== 图片检测 ==========
+        async function detectImage() {
+            const fileInput = document.getElementById('imageInput');
+            const statusDiv = document.getElementById('imageStatus');
+            const resultImage = document.getElementById('resultImage');
+            const resultData = document.getElementById('imageResultData');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                statusDiv.textContent = '⚠️ 请先选择一张图片！';
+                statusDiv.className = 'status error';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+
+            statusDiv.textContent = '⏳ 检测中...';
+            statusDiv.className = 'status running';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/detect/image/`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const blob = await response.blob();
+                const imageUrl = URL.createObjectURL(blob);
+                resultImage.src = imageUrl;
+
+                const detectionData = response.headers.get('X-Detection-Data');
+                if (detectionData) {
+                    const data = JSON.parse(detectionData);
+                    const stats = data.statistics || {};
+                    const warnings = data.warning_types || [];
+                    renderStats(stats, warnings, resultData);
+                    statusDiv.innerHTML = `✅ 检测完成！`;
+                    statusDiv.className = 'status running';
+                } else {
+                    resultData.textContent = '⚠️ 没有检测数据';
+                    statusDiv.textContent = '✅ 检测完成，但未返回数据';
+                    statusDiv.className = 'status';
+                }
+            } catch (error) {
+                statusDiv.textContent = `❌ 错误: ${error.message}`;
+                statusDiv.className = 'status error';
+                resultData.textContent = `错误: ${error.message}`;
+            }
+        }
+
+        // ========== 渲染统计数据 ==========
+        function renderStats(stats, warnings, container) {
+            const labels = {
+                person_count: '🚶 行人',
+                vehicle_count: '🚗 车辆',
+                bicycle_count: '🚲 自行车',
+                motorcycle_count: '🏍️ 摩托车',
+                tricycle_count: '🛺 三轮车',
+                bus_count: '🚌 公交车',
+                truck_count: '🚛 卡车'
+            };
+
+            let html = '<div class="stats-grid">';
+            for (const [key, label] of Object.entries(labels)) {
+                const val = stats[key] || 0;
+                if (val > 0 || key === 'person_count' || key === 'vehicle_count') {
+                    html += `<div class="stats-item"><div class="num">${val}</div><div class="label">${label}</div></div>`;
+                }
+            }
+            html += '</div>';
+
+            if (warnings && warnings.length > 0) {
+                html += '<div style="margin-top:10px;">';
+                warnings.forEach(w => {
+                    const cls = w === '拥堵' ? 'congestion' :
+                               w === '行人闯入' ? 'intrusion' : 'vehicle';
+                    html += `<span class="warning-tag ${cls}">⚠️ ${w}</span>`;
+                });
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        // ========== 视频检测 ==========
+        async function createVideoTask() {
+    const fileInput = document.getElementById('videoInput');
+    const statusDiv = document.getElementById('videoStatus');
+    const taskIdSpan = document.getElementById('taskIdSpan');
+    const taskIdDisplay = document.getElementById('taskIdDisplay');
+    const stopBtn = document.getElementById('stopVideoBtn');
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+        statusDiv.textContent = '⚠️ 请先选择一个视频文件！';
+        statusDiv.className = 'status error';
+        return;
+    }
+
+    const file = fileInput.files[0];
+
+    statusDiv.textContent = '⏳ 上传视频中...';
+    statusDiv.className = 'status running';
+    stopBtn.disabled = true;
+
+    try {
+        // 1. 先上传视频到服务器
+        const uploadFormData = new FormData();
+        uploadFormData.append('video', file);
+        const uploadResp = await fetch(`${API_BASE}/api/upload/video/`, {
+            method: 'POST',
+            body: uploadFormData
+        });
+        const uploadData = await uploadResp.json();
+
+        if (!uploadData.success) {
+            throw new Error(uploadData.error || '上传失败');
+        }
+
+        // 2. 创建检测任务
+        statusDiv.textContent = '⏳ 创建检测任务...';
+        const response = await fetch(`${API_BASE}/api/tasks/create/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                stream_url: uploadData.filename,
+                fps: 2,
+                device_id: 'web_frontend'
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.started) {
+            currentTaskId = data.task_id;
+            taskIdSpan.textContent = currentTaskId;
+            taskIdDisplay.style.display = 'block';
+            statusDiv.innerHTML = `✅ 任务已启动！正在处理视频...`;
+            statusDiv.className = 'status running';
+            stopBtn.disabled = false;
+
+            // 播放视频
+            const videoURL = URL.createObjectURL(file);
+            document.getElementById('videoSource').src = videoURL;
+            document.getElementById('videoPlayer').load();
+
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => pollTaskStatus(currentTaskId), 2000);
+        } else {
+            statusDiv.textContent = `❌ 任务启动失败: ${data.error || '未知错误'}`;
+            statusDiv.className = 'status error';
+        }
+    } catch (error) {
+        statusDiv.textContent = `❌ 错误: ${error.message}`;
+        statusDiv.className = 'status error';
+    }
+}
+
+async function pollTaskStatus(taskId) {
+    try {
+        const response = await fetch(`${API_BASE}/api/tasks/${taskId}/`);
+        if (!response.ok) {
+            if (response.status === 404) {
+                clearInterval(refreshInterval);
+                document.getElementById('videoStatus').textContent = '✅ 任务已完成';
+                document.getElementById('videoStatus').className = 'status running';
+                return;
+            }
+            return;
+        }
+        const data = await response.json();
+        updateVideoResult(data);
+    } catch (e) {
+        // 静默处理
+    }
+}
+
+        async function pollTaskStatus(taskId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks/${taskId}/`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        clearInterval(refreshInterval);
+                        document.getElementById('videoStatus').textContent = '✅ 任务已完成';
+                        return;
+                    }
+                    return;
+                }
+                const data = await response.json();
+                updateVideoResult(data);
+            } catch (e) {
+                // 静默处理
+            }
+        }
+
+        function updateVideoResult(data) {
+            const resultData = document.getElementById('videoResultData');
+            const statsDiv = document.getElementById('videoStats');
+
+            const stats = data.statistics || {};
+            const warnings = data.warnings || [];
+
+            renderStats(stats, warnings, statsDiv);
+
+            const displayData = {
+                '状态': data.status || 'unknown',
+                '已处理帧数': data.processed_frames || 0,
+                '总帧数': data.total_frames || 0,
+                '检测目标数': data.detections_count || 0,
+                '行人': stats.person_count || 0,
+                '车辆': stats.vehicle_count || 0,
+                '自行车': stats.bicycle_count || 0,
+                '摩托车': stats.motorcycle_count || 0,
+                '三轮车': stats.tricycle_count || 0,
+                '预警': warnings.length > 0 ? warnings.join(', ') : '无'
+            };
+            resultData.textContent = JSON.stringify(displayData, null, 2);
+        }
+
+        async function stopCurrentTask() {
+            if (!currentTaskId) return;
+            const statusDiv = document.getElementById('videoStatus');
+            try {
+                await fetch(`${API_BASE}/api/tasks/${currentTaskId}/stop/`, { method: 'POST' });
+                statusDiv.textContent = '⏹ 已停止任务';
+                statusDiv.className = 'status info';
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                    refreshInterval = null;
+                }
+                document.getElementById('stopVideoBtn').disabled = true;
+            } catch (e) {
+                statusDiv.textContent = `❌ 停止失败: ${e.message}`;
+                statusDiv.className = 'status error';
+            }
+        }
+
+        // ========== 任务列表 ==========
+        async function refreshTaskList() {
+            const container = document.getElementById('taskListData');
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks/`);
+                const data = await response.json();
+                container.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                container.textContent = `❌ 获取失败: ${e.message}`;
+            }
+        }
+
+        async function stopAllTasks() {
+            if (!confirm('确定要停止所有任务吗？')) return;
+            try {
+                await fetch(`${API_BASE}/api/tasks/stop-all/`, { method: 'POST' });
+                refreshTaskList();
+            } catch (e) {
+                alert('停止失败: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
