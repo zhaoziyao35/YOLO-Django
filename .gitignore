@@ -6,3 +6,7 @@ __pycache__/
 *.pt
 *.pth
 output.jpg
+db.sqlite3
+venv/
+runs/
+tollgate-dataset/
